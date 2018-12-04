@@ -206,6 +206,7 @@
 #include "scene/3d/vehicle_body.h"
 #include "scene/3d/visibility_notifier.h"
 #include "scene/animation/skeleton_ik.h"
+#include "scene/animation/skeleton_ik_2d.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/physics_material.h"
 #endif
@@ -438,6 +439,7 @@ void register_scene_types() {
 	ClassDB::register_class<SoftBody>();
 
 	ClassDB::register_class<SkeletonIK>();
+	ClassDB::register_class<SkeletonIK2D>();
 	ClassDB::register_class<BoneAttachment>();
 
 	ClassDB::register_class<VehicleBody>();

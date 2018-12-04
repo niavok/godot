@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  skeleton_2d.h                                                        */
+/*  skeleton_ik_2d_editor_plugin.h                                          */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,95 +28,38 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef SKELETON_2D_H
-#define SKELETON_2D_H
+#ifndef SKELETON_IK_2D_EDITOR_PLUGIN_H
+#define SKELETON_IK_2D_EDITOR_PLUGIN_H
 
-#include "scene/2d/node_2d.h"
+#include "editor/editor_node.h"
+#include "editor/editor_plugin.h"
 
-typedef int Bone2DId;
+class SkeletonIK2D;
 
-class Skeleton2D;
+class SkeletonIK2DEditorPlugin : public EditorPlugin {
 
-class Bone2D : public Node2D {
-	GDCLASS(Bone2D, Node2D)
+	GDCLASS(SkeletonIK2DEditorPlugin, EditorPlugin);
 
-	friend class Skeleton2D;
+	SkeletonIK2D *skeleton_ik;
 
-	Bone2D *parent_bone;
-	Skeleton2D *skeleton;
-	Transform2D rest;
-	float default_length;
+	Button *play_btn;
+	EditorNode *editor;
+	Vector<Transform2D> initial_bone_poses;
 
-	int skeleton_index;
+	void _play();
 
 protected:
-	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
-	void set_rest(const Transform2D &p_rest);
-	Transform2D get_rest() const;
-	void apply_rest();
-	Transform2D get_skeleton_rest() const;
+	virtual String get_name() const { return "SkeletonIK2D"; }
+	bool has_main_screen() const { return false; }
+	virtual void edit(Object *p_object);
+	virtual bool handles(Object *p_object) const;
+	virtual void make_visible(bool p_visible);
 
-	String get_configuration_warning() const;
-
-	void set_default_length(float p_length);
-	float get_default_length() const;
-
-	int get_index_in_skeleton() const;
-
-	Bone2D();
+	SkeletonIK2DEditorPlugin(EditorNode *p_node);
+	~SkeletonIK2DEditorPlugin();
 };
 
-class Skeleton2D : public Node2D {
-	GDCLASS(Skeleton2D, Node2D);
-
-	friend class Bone2D;
-
-	struct Bone {
-		bool operator<(const Bone &p_bone) const {
-			return p_bone.bone->is_greater_than(bone);
-		}
-		Bone2D *bone;
-		int parent_index;
-		Transform2D accum_transform;
-		Transform2D rest_inverse;
-	};
-
-	Vector<Bone> bones;
-
-	bool bone_setup_dirty;
-	void _make_bone_setup_dirty();
-	void _update_bone_setup();
-
-	bool transform_dirty;
-	void _make_transform_dirty();
-	void _update_transform();
-
-	RID skeleton;
-
-protected:
-	void _notification(int p_what);
-	static void _bind_methods();
-
-public:
-	int get_bone_count() const;
-	Bone2D *get_bone(int p_idx);
-	int get_bone_parent(int p_bone) const;
-	Transform2D get_bone_skeleton_pose(int p_bone) const;
-
-	void set_bone_skeleton_pose(int p_bone, const Transform2D &p_pose);
-
-	int find_bone(const String &p_name) const;
-	String get_bone_name(int p_bone) const;
-
-	void set_bone_pose(int p_bone, const Transform2D &p_pose);
-	Transform2D get_bone_pose(int p_bone) const;
-
-	RID get_skeleton() const;
-	Skeleton2D();
-	~Skeleton2D();
-};
-
-#endif // SKELETON_2D_H
+#endif // SKELETON_IK_2D_EDITOR_PLUGIN_H

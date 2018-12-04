@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  skeleton_2d.h                                                        */
+/*  skeleton_ik_2d_editor_plugin.cpp                                        */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,95 +28,83 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef SKELETON_2D_H
-#define SKELETON_2D_H
+#include "skeleton_ik_2d_editor_plugin.h"
 
-#include "scene/2d/node_2d.h"
+#include "scene/animation/skeleton_ik_2d.h"
 
-typedef int Bone2DId;
+void SkeletonIK2DEditorPlugin::_play() {
 
-class Skeleton2D;
+	if (!skeleton_ik)
+		return;
 
-class Bone2D : public Node2D {
-	GDCLASS(Bone2D, Node2D)
+	if (!skeleton_ik->get_parent_skeleton())
+		return;
 
-	friend class Skeleton2D;
+	if (play_btn->is_pressed()) {
 
-	Bone2D *parent_bone;
-	Skeleton2D *skeleton;
-	Transform2D rest;
-	float default_length;
-
-	int skeleton_index;
-
-protected:
-	void _notification(int p_what);
-	static void _bind_methods();
-
-public:
-	void set_rest(const Transform2D &p_rest);
-	Transform2D get_rest() const;
-	void apply_rest();
-	Transform2D get_skeleton_rest() const;
-
-	String get_configuration_warning() const;
-
-	void set_default_length(float p_length);
-	float get_default_length() const;
-
-	int get_index_in_skeleton() const;
-
-	Bone2D();
-};
-
-class Skeleton2D : public Node2D {
-	GDCLASS(Skeleton2D, Node2D);
-
-	friend class Bone2D;
-
-	struct Bone {
-		bool operator<(const Bone &p_bone) const {
-			return p_bone.bone->is_greater_than(bone);
+		initial_bone_poses.resize(skeleton_ik->get_parent_skeleton()->get_bone_count());
+		for (int i = 0; i < skeleton_ik->get_parent_skeleton()->get_bone_count(); ++i) {
+			initial_bone_poses.write[i] = skeleton_ik->get_parent_skeleton()->get_bone_pose(i);
 		}
-		Bone2D *bone;
-		int parent_index;
-		Transform2D accum_transform;
-		Transform2D rest_inverse;
-	};
 
-	Vector<Bone> bones;
+		skeleton_ik->start();
+	} else {
+		skeleton_ik->stop();
 
-	bool bone_setup_dirty;
-	void _make_bone_setup_dirty();
-	void _update_bone_setup();
+		if (initial_bone_poses.size() != skeleton_ik->get_parent_skeleton()->get_bone_count())
+			return;
 
-	bool transform_dirty;
-	void _make_transform_dirty();
-	void _update_transform();
+		for (int i = 0; i < skeleton_ik->get_parent_skeleton()->get_bone_count(); ++i) {
+			skeleton_ik->get_parent_skeleton()->set_bone_pose(i, initial_bone_poses[i]);
+		}
+	}
+}
 
-	RID skeleton;
+void SkeletonIK2DEditorPlugin::edit(Object *p_object) {
 
-protected:
-	void _notification(int p_what);
-	static void _bind_methods();
+	if (p_object != skeleton_ik) {
+		if (skeleton_ik) {
+			play_btn->set_pressed(false);
+			_play();
+		}
+	}
 
-public:
-	int get_bone_count() const;
-	Bone2D *get_bone(int p_idx);
-	int get_bone_parent(int p_bone) const;
-	Transform2D get_bone_skeleton_pose(int p_bone) const;
+	SkeletonIK2D *s = Object::cast_to<SkeletonIK2D>(p_object);
+	if (!s)
+		return;
 
-	void set_bone_skeleton_pose(int p_bone, const Transform2D &p_pose);
+	skeleton_ik = s;
+}
 
-	int find_bone(const String &p_name) const;
-	String get_bone_name(int p_bone) const;
+bool SkeletonIK2DEditorPlugin::handles(Object *p_object) const {
 
-	void set_bone_pose(int p_bone, const Transform2D &p_pose);
-	Transform2D get_bone_pose(int p_bone) const;
+	return p_object->is_class("SkeletonIK2D");
+}
 
-	RID get_skeleton() const;
-	Skeleton2D();
-	~Skeleton2D();
-};
+void SkeletonIK2DEditorPlugin::make_visible(bool p_visible) {
 
-#endif // SKELETON_2D_H
+	if (p_visible)
+		play_btn->show();
+	else
+		play_btn->hide();
+}
+
+void SkeletonIK2DEditorPlugin::_bind_methods() {
+
+	ClassDB::bind_method("_play", &SkeletonIK2DEditorPlugin::_play);
+}
+
+SkeletonIK2DEditorPlugin::SkeletonIK2DEditorPlugin(EditorNode *p_node) {
+
+	editor = p_node;
+	play_btn = memnew(Button);
+	play_btn->set_icon(editor->get_gui_base()->get_icon("Play", "EditorIcons"));
+	play_btn->set_text(TTR("Play IK"));
+	play_btn->set_toggle_mode(true);
+	play_btn->hide();
+	play_btn->connect("pressed", this, "_play");
+	add_control_to_container(CONTAINER_CANVAS_EDITOR_MENU, play_btn);
+	skeleton_ik = NULL;
+}
+
+SkeletonIK2DEditorPlugin::~SkeletonIK2DEditorPlugin() {}

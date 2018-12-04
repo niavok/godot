@@ -262,6 +262,72 @@ Bone2D *Skeleton2D::get_bone(int p_idx) {
 	return bones[p_idx].bone;
 }
 
+int Skeleton2D::get_bone_parent(int p_bone) const {
+
+	ERR_FAIL_INDEX_V(p_bone, bones.size(), -1);
+
+	return bones[p_bone].parent_index;
+}
+
+int Skeleton2D::find_bone(const String &p_name) const {
+
+	for (int i = 0; i < bones.size(); i++) {
+
+		if (bones[i].bone->get_name() == p_name)
+			return i;
+	}
+
+	return -1;
+}
+
+String Skeleton2D::get_bone_name(int p_bone) const {
+
+	ERR_FAIL_INDEX_V(p_bone, bones.size(), "");
+
+	return bones[p_bone].bone->get_name();
+}
+
+void Skeleton2D::set_bone_skeleton_pose(int p_bone, const Transform2D &p_pose) {
+
+	ERR_FAIL_INDEX(p_bone, bones.size());
+
+	if (bones[p_bone].parent_index == -1) {
+		set_bone_pose(p_bone, p_pose); // fast
+	} else {
+		Transform2D parent_pose = get_bone_skeleton_pose(bones[p_bone].parent_index);
+		set_bone_pose(p_bone, parent_pose.affine_inverse() * p_pose); //slow
+	}
+}
+
+void Skeleton2D::set_bone_pose(int p_bone, const Transform2D &p_pose) {
+
+	ERR_FAIL_INDEX(p_bone, bones.size());
+	ERR_FAIL_COND(!is_inside_tree());
+
+	bones[p_bone].bone->set_transform(p_pose);
+}
+
+Transform2D Skeleton2D::get_bone_pose(int p_bone) const {
+	ERR_FAIL_INDEX_V(p_bone, bones.size(), Transform2D());
+	return bones[p_bone].bone->get_transform();
+}
+
+Transform2D Skeleton2D::get_bone_skeleton_pose(int p_bone) const {
+	if (bone_setup_dirty) {
+		const_cast<Skeleton2D *>(this)->_update_bone_setup();
+	}
+
+	ERR_FAIL_INDEX_V(p_bone, bones.size(), Transform2D());
+
+	if (bones[p_bone].parent_index == -1) {
+
+		return get_bone_pose(p_bone);
+	} else {
+		Transform2D parent_pose = get_bone_skeleton_pose(bones[p_bone].parent_index);
+		return parent_pose * get_bone_pose(p_bone); //slow
+	}
+}
+
 void Skeleton2D::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_READY) {
