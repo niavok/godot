@@ -43,6 +43,7 @@ class SkeletonIK2DEditorPlugin : public EditorPlugin {
 	SkeletonIK2D *skeleton_ik;
 
 	Button *play_btn;
+	CheckBox *multiple_play_checkbox;
 	EditorNode *editor;
 	Vector<Transform2D> initial_bone_poses;
 

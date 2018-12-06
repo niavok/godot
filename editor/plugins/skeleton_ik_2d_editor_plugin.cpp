@@ -65,7 +65,10 @@ void SkeletonIK2DEditorPlugin::edit(Object *p_object) {
 	if (p_object != skeleton_ik) {
 		if (skeleton_ik) {
 			play_btn->set_pressed(false);
-			_play();
+			if(!multiple_play_checkbox->is_pressed())
+			{
+				_play();
+			}
 		}
 	}
 
@@ -74,6 +77,7 @@ void SkeletonIK2DEditorPlugin::edit(Object *p_object) {
 		return;
 
 	skeleton_ik = s;
+	play_btn->set_pressed(skeleton_ik->is_running());
 }
 
 bool SkeletonIK2DEditorPlugin::handles(Object *p_object) const {
@@ -81,12 +85,33 @@ bool SkeletonIK2DEditorPlugin::handles(Object *p_object) const {
 	return p_object->is_class("SkeletonIK2D");
 }
 
+int count_skeleton_ik_nodes(Node* node)
+{
+	int count = node->is_class("SkeletonIK2D") ? 1 : 0;
+
+	int children_count = node->get_child_count();
+	for(int i = 0; i < children_count; i++)
+	{
+		count += count_skeleton_ik_nodes(node->get_child(i));
+	}
+	return count;
+}
+
 void SkeletonIK2DEditorPlugin::make_visible(bool p_visible) {
 
 	if (p_visible)
+	{
 		play_btn->show();
+
+		int ik_count = count_skeleton_ik_nodes(get_editor_interface()->get_edited_scene_root());
+		if(ik_count > 1)
+			multiple_play_checkbox->show();
+	}
 	else
+	{
 		play_btn->hide();
+		multiple_play_checkbox->hide();
+	}
 }
 
 void SkeletonIK2DEditorPlugin::_bind_methods() {
@@ -103,7 +128,13 @@ SkeletonIK2DEditorPlugin::SkeletonIK2DEditorPlugin(EditorNode *p_node) {
 	play_btn->set_toggle_mode(true);
 	play_btn->hide();
 	play_btn->connect("pressed", this, "_play");
+
+	multiple_play_checkbox = memnew(CheckBox);
+	multiple_play_checkbox->set_text(TTR("Allow multiple IK"));
+	multiple_play_checkbox->hide();
+
 	add_control_to_container(CONTAINER_CANVAS_EDITOR_MENU, play_btn);
+	add_control_to_container(CONTAINER_CANVAS_EDITOR_MENU, multiple_play_checkbox);
 	skeleton_ik = NULL;
 }
 
