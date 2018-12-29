@@ -55,6 +55,10 @@ class FabrikInverseKinematic2D {
 		Bone2DId bone;
 		Bone2D *pb;
 
+		bool use_contraints;
+		real_t min_angle;
+		real_t max_angle;
+
 		real_t length;
 		/// Positions relative to root bone
 		Transform2D initial_transform;
@@ -66,7 +70,9 @@ class FabrikInverseKinematic2D {
 				parent_item(NULL),
 				bone(-1),
 				pb(NULL),
-				length(0) {}
+				use_contraints(false),
+				length(0)
+		{}
 
 		ChainItem *find_child(const Bone2DId p_bone_id);
 		ChainItem *add_child(const Bone2DId p_bone_id);
@@ -94,6 +100,7 @@ class FabrikInverseKinematic2D {
 		ChainItem *middle_chain_item;
 		Vector<ChainTip> tips;
 		Vector2 magnet_position;
+		Vector2 root_ori;
 	};
 
 public:
@@ -106,6 +113,7 @@ public:
 		// Settings
 		real_t min_distance;
 		int max_iterations;
+		bool use_contraints;
 
 		// Bone data
 		Bone2DId root_bone;
@@ -113,10 +121,13 @@ public:
 
 		Transform2D goal_global_transform;
 
+
+
 		Task() :
 				skeleton(NULL),
 				min_distance(0.01),
 				max_iterations(10),
+				use_contraints(false),
 				root_bone(-1) {}
 	};
 
@@ -128,8 +139,8 @@ private:
 
 	static void solve_simple(Task *p_task, bool p_solve_magnet);
 	/// Special solvers that solve only chains with one end effector
-	static void solve_simple_backwards(Chain &r_chain, bool p_solve_magnet);
-	static void solve_simple_forwards(Chain &r_chain, bool p_solve_magnet);
+	static void solve_simple_backwards(Chain &r_chain, bool p_solve_magnet, bool p_use_contraints);
+	static void solve_simple_forwards(Chain &r_chain, bool p_solve_magnet, bool p_use_contraints);
 
 public:
 	static Task *create_simple_task(Skeleton2D *p_sk, Bone2DId root_bone, Bone2DId tip_bone, const Transform2D &goal_transform);
@@ -154,6 +165,8 @@ class SkeletonIK2D : public Node {
 
 	real_t min_distance;
 	int max_iterations;
+
+	bool use_angle_limits;
 
 	Skeleton2D *skeleton;
 	Node2D *target_node_override;
@@ -199,6 +212,9 @@ public:
 
 	void set_max_iterations(int p_iterations);
 	int get_max_iterations() const { return max_iterations; }
+
+	void set_use_angle_limits(bool p_use);
+	bool is_using_angle_limits() const;
 
 	Skeleton2D *get_parent_skeleton() const { return skeleton; }
 

@@ -86,11 +86,33 @@ void Bone2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_skeleton_rest"), &Bone2D::get_skeleton_rest);
 	ClassDB::bind_method(D_METHOD("get_index_in_skeleton"), &Bone2D::get_index_in_skeleton);
 
+
 	ClassDB::bind_method(D_METHOD("set_default_length", "default_length"), &Bone2D::set_default_length);
 	ClassDB::bind_method(D_METHOD("get_default_length"), &Bone2D::get_default_length);
 
+	ClassDB::bind_method(D_METHOD("set_use_ik_angle_limits", "use"), &Bone2D::set_use_ik_angle_limits);
+	ClassDB::bind_method(D_METHOD("is_using_ik_angle_limits"), &Bone2D::is_using_ik_angle_limits);
+
+	ClassDB::bind_method(D_METHOD("set_ik_min_angle", "radians"), &Bone2D::set_ik_min_angle);
+	ClassDB::bind_method(D_METHOD("get_ik_min_angle"), &Bone2D::get_ik_min_angle);
+
+	ClassDB::bind_method(D_METHOD("set_ik_max_angle", "radians"), &Bone2D::set_ik_max_angle);
+	ClassDB::bind_method(D_METHOD("get_ik_max_angle"), &Bone2D::get_ik_max_angle);
+
+	ClassDB::bind_method(D_METHOD("set_ik_min_angle_degrees", "degrees"), &Bone2D::set_ik_min_angle_degrees);
+	ClassDB::bind_method(D_METHOD("get_ik_min_angle_degrees"), &Bone2D::get_ik_min_angle_degrees);
+
+	ClassDB::bind_method(D_METHOD("set_ik_max_angle_degrees", "degrees"), &Bone2D::set_ik_max_angle_degrees);
+	ClassDB::bind_method(D_METHOD("get_ik_max_angle_degrees"), &Bone2D::get_ik_max_angle_degrees);
+
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "rest"), "set_rest", "get_rest");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "default_length", PROPERTY_HINT_RANGE, "1,1024,1"), "set_default_length", "get_default_length");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_ik_angle_limits"), "set_use_ik_angle_limits", "is_using_ik_angle_limits");
+
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "ik_min_angle", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_ik_min_angle", "get_ik_min_angle");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "ik_max_angle", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_ik_max_angle", "get_ik_max_angle");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "ik_min_angle_degrees", PROPERTY_HINT_RANGE, "-1080,1080,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_ik_min_angle_degrees", "get_ik_min_angle_degrees");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "ik_max_angle_degrees", PROPERTY_HINT_RANGE, "-1080,1080,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_ik_max_angle_degrees", "get_ik_max_angle_degrees");
 }
 
 void Bone2D::set_rest(const Transform2D &p_rest) {
@@ -127,6 +149,48 @@ float Bone2D::get_default_length() const {
 	return default_length;
 }
 
+void Bone2D::set_use_ik_angle_limits(bool p_use) {
+	use_ik_angle_limits = p_use;
+}
+
+bool Bone2D::is_using_ik_angle_limits() const {
+	return use_ik_angle_limits;
+}
+
+void Bone2D::set_ik_min_angle(float p_angle) {
+
+	ik_min_angle = p_angle;
+}
+
+float Bone2D::get_ik_min_angle() const {
+	return ik_min_angle;
+}
+
+void Bone2D::set_ik_max_angle(float p_angle) {
+
+	ik_max_angle = p_angle;
+}
+
+float Bone2D::get_ik_max_angle() const {
+	return ik_max_angle;
+}
+
+void Bone2D::set_ik_min_angle_degrees(float p_degrees) {
+	set_ik_min_angle(Math::deg2rad(p_degrees));
+}
+
+float Bone2D::get_ik_min_angle_degrees() const {
+	return Math::rad2deg(get_ik_min_angle());
+}
+
+void Bone2D::set_ik_max_angle_degrees(float p_degrees) {
+	set_ik_max_angle(Math::deg2rad(p_degrees));
+}
+
+float Bone2D::get_ik_max_angle_degrees() const {
+	return Math::rad2deg(get_ik_max_angle());
+}
+
 int Bone2D::get_index_in_skeleton() const {
 	ERR_FAIL_COND_V(!skeleton, -1);
 	skeleton->_update_bone_setup();
@@ -161,6 +225,9 @@ Bone2D::Bone2D() {
 	parent_bone = NULL;
 	skeleton_index = -1;
 	default_length = 16;
+	use_ik_angle_limits = false;
+	ik_min_angle = 0;
+	ik_max_angle = 0;
 	set_notify_local_transform(true);
 	//this is a clever hack so the bone knows no rest has been set yet, allowing to show an error.
 	for (int i = 0; i < 3; i++) {

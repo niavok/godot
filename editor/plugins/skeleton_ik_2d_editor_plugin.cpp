@@ -34,6 +34,7 @@
 
 void SkeletonIK2DEditorPlugin::_play() {
 
+	printf("play\n");
 	if (!skeleton_ik)
 		return;
 
@@ -61,7 +62,7 @@ void SkeletonIK2DEditorPlugin::_play() {
 }
 
 void SkeletonIK2DEditorPlugin::edit(Object *p_object) {
-
+	printf("edit\n");
 	if (p_object != skeleton_ik) {
 		if (skeleton_ik) {
 			play_btn->set_pressed(false);
@@ -77,6 +78,7 @@ void SkeletonIK2DEditorPlugin::edit(Object *p_object) {
 		return;
 
 	skeleton_ik = s;
+	printf("   edit set_pressed is runing\n");
 	play_btn->set_pressed(skeleton_ik->is_running());
 }
 

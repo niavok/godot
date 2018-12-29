@@ -47,6 +47,10 @@ class Bone2D : public Node2D {
 	Transform2D rest;
 	float default_length;
 
+	bool use_ik_angle_limits;
+	float ik_min_angle;
+	float ik_max_angle;
+
 	int skeleton_index;
 
 protected:
@@ -63,6 +67,21 @@ public:
 
 	void set_default_length(float p_length);
 	float get_default_length() const;
+
+	void set_use_ik_angle_limits(bool p_use);
+	bool is_using_ik_angle_limits() const;
+
+	void set_ik_min_angle(float p_angle);
+	float get_ik_min_angle() const;
+
+	void set_ik_max_angle(float p_angle);
+	float get_ik_max_angle() const;
+
+	void set_ik_min_angle_degrees(float p_degrees);
+	float get_ik_min_angle_degrees() const;
+
+	void set_ik_max_angle_degrees(float p_degrees);
+	float get_ik_max_angle_degrees() const;
 
 	int get_index_in_skeleton() const;
 

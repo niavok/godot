@@ -144,6 +144,12 @@ void FabrikInverseKinematic2D::update_chain(const Skeleton2D *p_sk, ChainItem *p
 	p_chain_item->initial_transform = p_sk->get_bone_skeleton_pose(p_chain_item->bone);
 	p_chain_item->current_pos = p_chain_item->initial_transform.get_origin();
 
+
+
+	p_chain_item->use_contraints = p_chain_item->pb->is_using_ik_angle_limits();
+	p_chain_item->max_angle = p_chain_item->pb->get_ik_max_angle();
+	p_chain_item->min_angle = p_chain_item->pb->get_ik_min_angle();
+
 	for (int i = p_chain_item->childs.size() - 1; 0 <= i; --i) {
 		update_chain(p_sk, &p_chain_item->childs.write[i]);
 	}
@@ -158,14 +164,14 @@ void FabrikInverseKinematic2D::solve_simple(Task *p_task, bool p_solve_magnet) {
 		previous_distance_to_goal = distance_to_goal;
 		--can_solve;
 
-		solve_simple_backwards(p_task->chain, p_solve_magnet);
-		solve_simple_forwards(p_task->chain, p_solve_magnet);
+		solve_simple_backwards(p_task->chain, p_solve_magnet, p_task->use_contraints);
+		solve_simple_forwards(p_task->chain, p_solve_magnet, p_task->use_contraints);
 
 		distance_to_goal = (p_task->chain.tips[0].chain_item->current_pos - p_task->chain.tips[0].end_effector->goal_transform.get_origin()).length();
 	}
 }
 
-void FabrikInverseKinematic2D::solve_simple_backwards(Chain &r_chain, bool p_solve_magnet) {
+void FabrikInverseKinematic2D::solve_simple_backwards(Chain &r_chain, bool p_solve_magnet, bool p_use_contraints) {
 
 	if (p_solve_magnet && !r_chain.middle_chain_item) {
 		return;
@@ -191,14 +197,37 @@ void FabrikInverseKinematic2D::solve_simple_backwards(Chain &r_chain, bool p_sol
 			const Vector2 look_parent((sub_chain_tip->parent_item->current_pos - sub_chain_tip->current_pos).normalized());
 			goal = sub_chain_tip->current_pos + (look_parent * sub_chain_tip->length);
 
-			// [TODO] Constraints goes here
+			if(p_use_contraints && sub_chain_tip->parent_item->use_contraints && sub_chain_tip->parent_item->parent_item)
+			{
+
+				real_t angle_correction = 0;
+
+				Vector2 parent_pos = sub_chain_tip->parent_item->parent_item->current_pos;
+
+				Vector2 futur_ori = (parent_pos - goal).normalized();
+
+				real_t angle = look_parent.angle_to(futur_ori);
+
+				if(angle > sub_chain_tip->parent_item->max_angle)
+				{
+					angle_correction = sub_chain_tip->parent_item->max_angle - angle;
+				}
+				else if(angle < sub_chain_tip->parent_item->min_angle)
+				{
+					angle_correction = sub_chain_tip->parent_item->min_angle - angle;
+				}
+
+
+				const Vector2 new_look_parent = look_parent.rotated(-angle_correction);
+				goal = sub_chain_tip->current_pos + (new_look_parent * sub_chain_tip->length);
+			}
 		}
 
 		sub_chain_tip = sub_chain_tip->parent_item;
 	}
 }
 
-void FabrikInverseKinematic2D::solve_simple_forwards(Chain &r_chain, bool p_solve_magnet) {
+void FabrikInverseKinematic2D::solve_simple_forwards(Chain &r_chain, bool p_solve_magnet, bool p_use_contraints) {
 
 	if (p_solve_magnet && !r_chain.middle_chain_item) {
 		return;
@@ -219,9 +248,41 @@ void FabrikInverseKinematic2D::solve_simple_forwards(Chain &r_chain, bool p_solv
 
 			// Look child
 			sub_chain_root->current_ori = (child.current_pos - sub_chain_root->current_pos).normalized();
-			origin = sub_chain_root->current_pos + (sub_chain_root->current_ori * child.length);
 
-			// [TODO] Constraints goes here
+			if(p_use_contraints && sub_chain_root->use_contraints)
+			{
+				real_t angle_correction = 0;
+				real_t angle;
+
+				Vector2 parent_ori;
+
+				if(sub_chain_root->parent_item)
+				{
+					parent_ori = sub_chain_root->parent_item->current_ori;
+				}
+				else
+				{
+					parent_ori = r_chain.root_ori;
+				}
+
+				angle = sub_chain_root->current_ori.angle_to(parent_ori);
+
+				if(angle > sub_chain_root->max_angle)
+				{
+					angle_correction = sub_chain_root->max_angle - angle;
+				}
+				else if(angle < sub_chain_root->min_angle)
+				{
+					angle_correction = sub_chain_root->min_angle - angle;
+				}
+
+				if(angle_correction != 0)
+				{
+					sub_chain_root->current_ori = sub_chain_root->current_ori.rotated(-angle_correction);
+				}
+			}
+
+			origin = sub_chain_root->current_pos + (sub_chain_root->current_ori * child.length);
 
 			if (p_solve_magnet && sub_chain_root == r_chain.middle_chain_item) {
 				// In case of magnet solving this is the tip
@@ -287,6 +348,7 @@ void FabrikInverseKinematic2D::solve(Task *p_task, real_t blending_delta, bool o
 	make_goal(p_task, p_task->skeleton->get_global_transform().affine_inverse().scaled(p_task->skeleton->get_global_transform().get_scale()), blending_delta);
 
 	update_chain(p_task->skeleton, &p_task->chain.chain_root);
+	p_task->chain.root_ori = p_task->skeleton->get_bone_pose(p_task->chain.chain_root.bone).get_origin().normalized();
 
 	if (p_use_magnet && p_task->chain.middle_chain_item) {
 		p_task->chain.magnet_position = p_task->chain.middle_chain_item->initial_transform.get_origin().linear_interpolate(p_magnet_position, blending_delta);
@@ -312,9 +374,7 @@ void FabrikInverseKinematic2D::solve(Task *p_task, real_t blending_delta, bool o
 
 			const real_t rot_angle_diff = rot_angle - initial_rot_angle;
 
-			//const real_t rot_angle(Math::acos(CLAMP(initial_ori.dot(ci->current_ori), -1, 1)));
 			new_bone_pose.set_rotation(new_bone_pose.get_rotation() + rot_angle_diff);
-			//new_bone_pose.set_rotation(rot_angle);
 		} else {
 			// Set target orientation to tip
 			if (override_tip_basis)
@@ -390,6 +450,9 @@ void SkeletonIK2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_iterations", "iterations"), &SkeletonIK2D::set_max_iterations);
 	ClassDB::bind_method(D_METHOD("get_max_iterations"), &SkeletonIK2D::get_max_iterations);
 
+	ClassDB::bind_method(D_METHOD("set_use_angle_limits", "use"), &SkeletonIK2D::set_use_angle_limits);
+	ClassDB::bind_method(D_METHOD("is_using_angle_limits"), &SkeletonIK2D::is_using_angle_limits);
+
 	ClassDB::bind_method(D_METHOD("start", "one_time"), &SkeletonIK2D::start, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("stop"), &SkeletonIK2D::stop);
 
@@ -403,6 +466,7 @@ void SkeletonIK2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "target_node"), "set_target_node", "get_target_node");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "min_distance"), "set_min_distance", "get_min_distance");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_iterations"), "set_max_iterations", "get_max_iterations");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_angle_limits"), "set_use_angle_limits", "is_using_angle_limits");
 }
 
 void SkeletonIK2D::_notification(int p_what) {
@@ -432,6 +496,7 @@ SkeletonIK2D::SkeletonIK2D() :
 		use_magnet(false),
 		min_distance(0.01),
 		max_iterations(10),
+		use_angle_limits(false),
 		skeleton(NULL),
 		target_node_override(NULL),
 		task(NULL) {
@@ -521,6 +586,14 @@ void SkeletonIK2D::set_max_iterations(int p_iterations) {
 	max_iterations = p_iterations;
 }
 
+void SkeletonIK2D::set_use_angle_limits(bool p_use) {
+	use_angle_limits = p_use;
+}
+
+bool SkeletonIK2D::is_using_angle_limits() const {
+	return use_angle_limits;
+}
+
 bool SkeletonIK2D::is_running() {
 	return is_processing_internal();
 }
@@ -561,6 +634,7 @@ void SkeletonIK2D::reload_chain() {
 	if (task) {
 		task->max_iterations = max_iterations;
 		task->min_distance = min_distance;
+		task->use_contraints = use_angle_limits;
 	}
 }
 
